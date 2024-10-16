@@ -1,7 +1,8 @@
 import discord
 import os
 from dotenv import load_dotenv
-from responses import handle_response  # Import handle_response from response.py
+# bot.py
+from responses import retrieve_documents, generate_response  # Adjusted import
 
 # Load environment variables from .env file
 load_dotenv()

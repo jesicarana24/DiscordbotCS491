@@ -1,6 +1,6 @@
 import time
 import os
-from openai import OpenAI
+import openai  # Import the correct OpenAI module
 from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
 import pandas as pd
@@ -14,7 +14,7 @@ pd.set_option('display.width', 1000)
 
 # Initialize Pinecone and OpenAI clients
 pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+openai.api_key = os.getenv('OPENAI_API_KEY')  # Initialize the OpenAI client with the correct API key
 
 # Load and filter the CSV data
 df = pd.read_csv('organized_faq_data.csv')
@@ -24,7 +24,7 @@ if small_df.empty:
     raise Exception("No rows found with Difficulty == 1.")
 
 # Sample one row for simplicity
-small_df = small_df.sample(n=1)
+small_df = small_df.sample(n=5)
 
 # Create a combined column for embedding input
 small_df['combined'] = (
@@ -40,8 +40,8 @@ small_df['combined'] = (
 def get_embedding(text, retries=3, backoff_factor=60):
     for attempt in range(retries):
         try:
-            response = client.embeddings.create(input=text, model='text-embedding-ada-002')
-            return response.data[0].embedding
+            response = openai.Embedding.create(input=text, model='text-embedding-ada-002')
+            return response['data'][0]['embedding']
         except Exception as e:
             print(f"An error occurred: {e}")
             if attempt < retries - 1:
@@ -78,22 +78,8 @@ for i, embed in enumerate(embeddings):
 if final_embeddings:
     index_name = 'capstone-project'
 
-    # Check if the index exists, skip creation if it does
-    if index_name not in pc.list_indexes():
-        print(f"Creating a new index: {index_name}")
-        pc.create_index(
-            name=index_name,
-            dimension=1538,  # Ensure this matches the actual size of your final embeddings
-            metric='cosine',
-            spec=ServerlessSpec(
-                cloud="aws",
-                region="us-east-1"
-            )
-        )
-    else:
-        print(f"Index '{index_name}' already exists. Skipping index creation.")
 
-    #Get the index instance
+    # Get the index instance
     index = pc.Index(index_name)
 
     # Prepare data for upsert (using unique row IDs)
