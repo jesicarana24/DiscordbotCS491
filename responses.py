@@ -40,6 +40,8 @@ def normalize_embedding(embedding):
     return rounded_embedding.tolist()
 
 # Retrieve documents from Pinecone
+# Retrieve documents from Pinecone
+# Retrieve documents from Pinecone
 def retrieve_documents(query):
     try:
         # Get embedding from OpenAI
@@ -54,14 +56,15 @@ def retrieve_documents(query):
         query_embedding = normalize_embedding(query_embedding)
 
         # Query Pinecone with the generated embedding using keyword arguments
-        # Correct query with keyword arguments
         result = index.query(
-            vector=query_embedding,  # The embedding or vector to search with
-            top_k=5  # Number of results to return
+            vector=query_embedding,  # This is the query vector
+            top_k=10,                 # Number of results you want to retrieve
+            namespace=''              # Namespace, leave empty if not using any
         )
 
 
-
+        # Optionally describe the index stats for debugging
+        index.describe_index_stats()
 
         return result
     except Exception as e:

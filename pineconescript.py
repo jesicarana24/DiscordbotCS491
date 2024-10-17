@@ -81,7 +81,6 @@ for embed in embeddings:
         final_embeddings.append([float(e) for e in embed])  # Ensure all values are floats
     else:
         print(f"Invalid embedding size: {len(embed)}, skipping...")
-
 # Proceed with upsert if valid embeddings exist
 if final_embeddings:
     index_name = 'capstone-project'
@@ -89,8 +88,10 @@ if final_embeddings:
     # Get the index instance
     index = pc.Index(index_name)
 
+    # Specify the namespace
+    namespace = "your_namespace"
+
     # Prepare data for upsert with metadata
-    # Ensure metadata has default values for each entry
     vectors_to_upsert = [
         (
             f'row-{i}',  # Unique ID
@@ -98,20 +99,14 @@ if final_embeddings:
             {  # Metadata for each vector, using fallback values if needed
                 'Difficulty': float(small_df.iloc[i]['Difficulty']),
                 'Volatility': float(small_df.iloc[i]['Volatility Level']),
-                'question': small_df.iloc[i]['Question'] or 'Unknown question',  # Fallback value
-                'answer': small_df.iloc[i]['Answer'] or 'Unknown answer'          # Fallback value
+                'question': small_df.iloc[i]['Question'] or 'Unknown question',
+                'answer': small_df.iloc[i]['Answer'] or 'Unknown answer'
             }
         )
         for i in range(len(final_embeddings))
     ]
 
-# Perform the upsert operation
-    index.upsert(vectors=vectors_to_upsert)
+    # Perform the upsert operation with a namespace
+    index.upsert(vectors=vectors_to_upsert, namespace=namespace)
 
-
-
-    # Perform the upsert operation
-    print(f"Upserted {len(vectors_to_upsert)} vectors to the index '{index_name}'.")
-
-else:
-    raise Exception("No valid embeddings available to upsert.")
+    print(f"Upserted {len(vectors_to_upsert)} vectors to the index '{index_name}' in namespace '{namespace}'.")
