@@ -1,57 +1,47 @@
 import discord
 import os
 from dotenv import load_dotenv
-# bot.py
-from responses import retrieve_documents, generate_response  # Adjusted import
+from main import get_embedding, query_pinecone, generate_response  # Import functions from main.py
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
-# Define the function to send a message
-async def send_message(message, user_message, is_private):
+# Initialize Discord client
+TOKEN = os.getenv('TOKEN')  # The bot token from your .env file
+
+# Set up intents
+intents = discord.Intents.default()
+intents.message_content = True  # Make sure this is enabled in the developer portal
+
+client = discord.Client(intents=intents)
+
+@client.event
+async def on_ready():
+    print(f'{client.user} is now running!')
+
+@client.event
+async def on_message(message):
+    # Ignore messages from the bot itself
+    if message.author == client.user:
+        return
+
+    user_message = str(message.content)
+
     try:
-        # Generate the response using handle_response
-        response = handle_response(user_message)
+        # Step 1: Get the embedding for the query from Discord message
+        query_embedding = get_embedding(user_message)
         
-        # Send the response as a private message or to the channel
-        if is_private:
-            await message.author.send(response)
-        else:
-            await message.channel.send(response)
+        # Step 2: Query Pinecone using the query embedding
+        retrieved_docs = query_pinecone(query_embedding)
+        
+        # Step 3: Generate a response based on the retrieved documents
+        response = generate_response(retrieved_docs, user_message)
+        
+        # Send the response back to the user in Discord
+        await message.channel.send(response)
+        
     except Exception as e:
-        print(f"An error occurred: {e}")
+        await message.channel.send(f"An error occurred: {str(e)}")
 
 # Run the bot
-def run_discord_bot():
-    TOKEN = os.getenv('TOKEN')
-
-    # Specify intents
-    intents = discord.Intents.default()
-    intents.message_content = True  # Ensure message content intent is enabled
-
-    client = discord.Client(intents=intents)
-
-    @client.event
-    async def on_ready():
-        print(f'{client.user} is now running!')
-
-    @client.event
-    async def on_message(message):
-        if message.author == client.user:
-            return  # Ignore the bot's own messages
-
-        username = str(message.author)
-        user_message = str(message.content)
-        channel = str(message.channel)
-
-        print(f"{username} said: '{user_message}' in ({channel})")
-
-        # Private message if the user starts with '?' 
-        if user_message.startswith('?'):
-            user_message = user_message[1:]  # Remove the '?' to process the message
-            await send_message(message, user_message, is_private=True)
-        else:
-            await send_message(message, user_message, is_private=False)
-
-    print(TOKEN)
-    client.run(TOKEN)
+client.run(TOKEN)
