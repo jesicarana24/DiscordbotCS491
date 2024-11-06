@@ -60,7 +60,7 @@ To set up and run the Capstone FAQ Bot, follow these steps:
 2. In the designated channel, type a question or keyword related to the course content.
 3. The bot will respond with relevant information pulled from the FAQ data stored in Pinecone.
 
-License
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
