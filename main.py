@@ -39,7 +39,7 @@ def query_pinecone(query_embedding):
     query_vector = [float(e) for e in query_embedding]
     result = index.query(
         vector=query_vector,
-        top_k=3,
+        top_k=5,  # Retrieve more results to ensure we capture corrections
         include_values=True,
         include_metadata=True
     )
@@ -63,7 +63,10 @@ def find_latest_correction_in_pinecone(query):
     embedding = get_embedding(query)
     result = query_pinecone(embedding)
 
-    # Sort matches by timestamp (most recent first)
+    # Debugging logs to inspect matches
+    print(f"Retrieved matches from Pinecone for query '{query}': {result['matches']}")
+
+    # Sort matches by timestamp (most recent first) and filter for corrections
     corrections = [
         match["metadata"]
         for match in result["matches"]
@@ -71,7 +74,9 @@ def find_latest_correction_in_pinecone(query):
     ]
     if corrections:
         corrections.sort(key=lambda x: x.get("Timestamp", ""), reverse=True)
-        return corrections[0]["CorrectedAnswer"]  # Return the most recent correction
+        latest_correction = corrections[0]["CorrectedAnswer"]  # Get the most recent correction
+        print(f"Latest correction found: {latest_correction}")
+        return latest_correction
     return None
 
 def generate_response(retrieved_docs, query):
