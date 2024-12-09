@@ -1,32 +1,19 @@
 import discord
 import os
-import json
 from dotenv import load_dotenv
 from pinecone import Pinecone
 import openai
 import time
+from datetime import datetime
 
 load_dotenv()
 
+# Initialize Pinecone and OpenAI API keys
 pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 index_name = 'capstone-project'
 index = pc.Index(index_name)
-
-MEMORY_FILE = 'memory.json'
-
-def load_memory():
-    """Load memory from JSON file."""
-    if not os.path.exists(MEMORY_FILE):
-        return {}
-    with open(MEMORY_FILE, 'r') as f:
-        return json.load(f)
-
-def save_memory(memory):
-    """Save memory to JSON file."""
-    with open(MEMORY_FILE, 'w') as f:
-        json.dump(memory, f, indent=4)
 
 def get_embedding(text, retries=3, backoff_factor=60):
     """Generate embedding using OpenAI."""
@@ -57,6 +44,35 @@ def query_pinecone(query_embedding):
         include_metadata=True
     )
     return result
+
+def upsert_to_pinecone(query, corrected_answer):
+    """Upsert a corrected query and response into Pinecone."""
+    embedding = get_embedding(query)
+    timestamp = datetime.utcnow().isoformat()  # Add timestamp for prioritization
+    metadata = {
+        "CorrectedQuery": query,
+        "CorrectedAnswer": corrected_answer,
+        "Timestamp": timestamp
+    }
+    vector_id = f"correction-{hash(query)}"  # Use a hash of the query as a unique ID
+    index.upsert(vectors=[(vector_id, embedding, metadata)])
+    print(f"Upserted correction: Query: '{query}', Answer: '{corrected_answer}', Timestamp: '{timestamp}'")
+
+def find_latest_correction_in_pinecone(query):
+    """Check Pinecone for the latest stored correction."""
+    embedding = get_embedding(query)
+    result = query_pinecone(embedding)
+
+    # Sort matches by timestamp (most recent first)
+    corrections = [
+        match["metadata"]
+        for match in result["matches"]
+        if "CorrectedAnswer" in match["metadata"]
+    ]
+    if corrections:
+        corrections.sort(key=lambda x: x.get("Timestamp", ""), reverse=True)
+        return corrections[0]["CorrectedAnswer"]  # Return the most recent correction
+    return None
 
 def generate_response(retrieved_docs, query):
     """Generate a response based on retrieved documents."""
@@ -90,25 +106,23 @@ async def on_message(message):
         return
 
     user_message = str(message.content).lower()
-    memory = load_memory()
 
-    if user_message.startswith("no, that's wrong"):
-        try:
-            parts = user_message.split("it's due on ")
-            if len(parts) > 1:
-                corrected_answer = parts[1].strip()
-                memory_key = message.reference.message_id 
-                memory[memory_key] = corrected_answer
-                save_memory(memory)
-                await message.channel.send("Got it! I've updated my memory for next time.")
-            else:
-                await message.channel.send("Please provide the correct information after 'it's due on'.")
-        except Exception as e:
-            await message.channel.send(f"An error occurred while saving your correction: {str(e)}")
+    # Check for corrections
+    if "it's actually" in user_message or "no, that's wrong" in user_message:
+        if message.reference and message.reference.message_id:
+            original_query = message.reference.resolved.content  # Get the original question text
+            corrected_answer = user_message.split("it's actually")[-1].strip()  # Extract corrected answer
+            # Save the corrected answer to Pinecone
+            upsert_to_pinecone(original_query, corrected_answer)
+            await message.channel.send("Thanks for the correction! I've updated my memory.")
+        else:
+            await message.channel.send("Please reply to the message you want to correct.")
         return
 
-    if str(message.id) in memory:
-        await message.channel.send(memory[str(message.id)])
+    # Check Pinecone for the latest relevant correction
+    correction = find_latest_correction_in_pinecone(user_message)
+    if correction:
+        await message.channel.send(correction)
         return
 
     if user_message in ["hey", "hello", "hi"]:
