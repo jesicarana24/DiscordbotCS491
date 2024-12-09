@@ -2,42 +2,49 @@ import pandas as pd
 
 def process_unorganized_data(df):
     """
-    This function takes unorganized data from a DataFrame and organizes it into a structured DataFrame.
+    Organize unstructured FAQ data into a clean, structured format.
 
     Args:
-        df (pd.DataFrame): DataFrame containing unorganized data.
+        df (pd.DataFrame): DataFrame containing unorganized FAQ data with the following required columns:
+            - 'Question'
+            - 'Answer'
+            - 'Context'
+            - 'Intent'
+            - 'Entities'
+            - 'Difficulty'
+            - 'Volatility Level'
+            - 'Comments'
 
     Returns:
-        pd.DataFrame: Organized DataFrame.
+        pd.DataFrame: Structured DataFrame with the same columns.
     """
-    structured_data = {
-        'Question': [],
-        'Answer': [],
-        'Context': [],
-        'Intent': [],
-        'Entities': [],
-        'Difficulty': [],
-        'Volatility Level': [],
-        'Comments': []
-    }
+    required_columns = [
+        'Question', 'Answer', 'Context', 'Intent', 
+        'Entities', 'Difficulty', 'Volatility Level', 'Comments'
+    ]
+    
+    # Check for missing columns
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Input DataFrame is missing required columns: {missing_columns}")
 
-    for _, row in df.iterrows():
-        structured_data['Question'].append(row['Question'])
-        structured_data['Answer'].append(row['Answer'])
-        structured_data['Context'].append(row['Context'])
-        structured_data['Intent'].append(row['Intent'])
-        structured_data['Entities'].append(row['Entities'])
-        structured_data['Difficulty'].append(row['Difficulty'])
-        structured_data['Volatility Level'].append(row['Volatility Level'])
-        structured_data['Comments'].append(row['Comments'])
+    # Ensure only required columns are present and in the correct order
+    organized_df = df[required_columns].copy()
 
-    organized_df = pd.DataFrame(structured_data)
     return organized_df
 
-unorganized_df = pd.read_csv('faq-data.csv')
+# Load unorganized data
+try:
+    unorganized_df = pd.read_csv('faq-data.csv')
+    print("[INFO] Unorganized data loaded successfully.")
+except FileNotFoundError:
+    raise FileNotFoundError("The file 'faq-data.csv' was not found. Please ensure it exists in the working directory.")
 
-organized_df = process_unorganized_data(unorganized_df)
-
-organized_df.to_csv('organized_faq_data.csv', index=False)
-
-print(organized_df)
+# Process data
+try:
+    organized_df = process_unorganized_data(unorganized_df)
+    organized_df.to_csv('organized_faq_data.csv', index=False)
+    print("[INFO] Organized data saved to 'organized_faq_data.csv'.")
+    print(organized_df)
+except ValueError as ve:
+    print(f"[ERROR] {ve}")
