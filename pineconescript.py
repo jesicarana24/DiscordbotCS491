@@ -67,7 +67,7 @@ final_embeddings = [[float(e) for e in embed] for embed in embeddings]
 
 
 if final_embeddings:
-    index_name = 'capstone-project'
+    index_name = 'capstone-project-dave'
     index = pc.Index(index_name)
 
     vectors_to_upsert = [
