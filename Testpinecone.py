@@ -9,9 +9,17 @@ pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
 index_name = 'capstone-project'
 index = pc.Index(index_name)
 
-def retrieve_vector_data(vector_id):
-    result = index.fetch(ids=[vector_id])
-    return result
+def retrieve_vector_data(vector_ids):
+    result = index.fetch(ids=vector_ids)
+    if not result.get("vectors"):
+        print(f"[ERROR] No vectors found for IDs: {vector_ids}")
+        return
+
+    for vector_id, data in result["vectors"].items():
+        metadata = data.get("metadata", {})
+        print(f"Vector ID: {vector_id}")
+        print(f"Metadata: {metadata}")
+
 
 if __name__ == "__main__":
     vector_id = ["row-9","row-13"]  
