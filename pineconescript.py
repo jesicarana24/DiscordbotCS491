@@ -1,4 +1,3 @@
-
 import time
 import os
 import openai
@@ -13,8 +12,7 @@ pd.set_option('display.width', 1000)
 
 pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
 openai.api_key = os.getenv('OPENAI_API_KEY')  
-df = pd.read_csv('organized_faq_data.csv')
-small_df = df[df['Difficulty'] == 1]
+small_df = pd.read_csv('message.csv')
 
 if small_df.empty:
     raise Exception("No rows found with Difficulty == 1.")
@@ -63,39 +61,33 @@ for text in small_df['combined']:
 if not embeddings:
     raise Exception("No embeddings were generated due to errors.")
 
-# Ensure all embeddings have correct dimensions
-final_embeddings = []
-for embed in embeddings:
-    if len(embed) == 1536:  # Check if each embedding is of the correct size
-        final_embeddings.append([float(e) for e in embed])  # Ensure all values are floats
-    else:
-        print(f"Invalid embedding size: {len(embed)}, skipping...")
-# Proceed with upsert if valid embeddings exist
+
+final_embeddings = [[float(e) for e in embed] for embed in embeddings]
+
+
 if final_embeddings:
-    index_name = 'capstone-project'
-    
-    # Get the index instance
+    index_name = 'capstone-project-jesica-2'
     index = pc.Index(index_name)
 
-    # Specify the namespace
-    namespace = "your_namespace"
-
-    # Prepare data for upsert with metadata
     vectors_to_upsert = [
         (
-            f'row-{i}',  # Unique ID
-            final_embeddings[i],  # The embedding
-            {  # Metadata for each vector, using fallback values if needed
-                'Difficulty': float(small_df.iloc[i]['Difficulty']),
-                'Volatility': float(small_df.iloc[i]['Volatility Level']),
-                'question': small_df.iloc[i]['Question'] or 'Unknown question',
-                'answer': small_df.iloc[i]['Answer'] or 'Unknown answer'
+            f'row-{i}',  
+            final_embeddings[i],  
+            { 
+                'Difficulty': str(small_df.iloc[i]['Difficulty']),  
+                'Volatility': str(small_df.iloc[i].get('Volatility Level', '')), 
+                'Question': str(small_df.iloc[i]['Question']), 
+                'Answer': str(small_df.iloc[i]['Answer']),
+                'Context': str(small_df.iloc[i]['Context']),
+                'CombinedText': str(small_df.iloc[i]['combined'])
             }
         )
         for i in range(len(final_embeddings))
     ]
+    index.upsert(vectors=vectors_to_upsert)
+    print(f"Upserted {len(vectors_to_upsert)} vectors to the index '{index_name}'.")
 
-    # Perform the upsert operation with a namespace
-    index.upsert(vectors=vectors_to_upsert, namespace=namespace)
+else:
+    raise Exception("No embeddings available to create or update the index.")
 
-    print(f"Upserted {len(vectors_to_upsert)} vectors to the index '{index_name}' in namespace '{namespace}'.")
+print("Script completed successfully.")
