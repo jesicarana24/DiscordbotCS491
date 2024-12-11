@@ -12,8 +12,7 @@ pd.set_option('display.width', 1000)
 
 pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
 openai.api_key = os.getenv('OPENAI_API_KEY')  
-df = pd.read_csv('organized_faq_data.csv')
-small_df = df[df['Difficulty'] == 1]
+small_df = pd.read_csv('message.csv')
 
 if small_df.empty:
     raise Exception("No rows found with Difficulty == 1.")
@@ -67,7 +66,7 @@ final_embeddings = [[float(e) for e in embed] for embed in embeddings]
 
 
 if final_embeddings:
-    index_name = 'capstone-project'
+    index_name = 'capstone-project-jesica-2'
     index = pc.Index(index_name)
 
     vectors_to_upsert = [
