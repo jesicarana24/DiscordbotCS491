@@ -1,3 +1,4 @@
+
 import time
 import os
 import openai
@@ -62,33 +63,39 @@ for text in small_df['combined']:
 if not embeddings:
     raise Exception("No embeddings were generated due to errors.")
 
-
-final_embeddings = [[float(e) for e in embed] for embed in embeddings]
-
-
+# Ensure all embeddings have correct dimensions
+final_embeddings = []
+for embed in embeddings:
+    if len(embed) == 1536:  # Check if each embedding is of the correct size
+        final_embeddings.append([float(e) for e in embed])  # Ensure all values are floats
+    else:
+        print(f"Invalid embedding size: {len(embed)}, skipping...")
+# Proceed with upsert if valid embeddings exist
 if final_embeddings:
-    index_name = 'capstone-project-dave'
+    index_name = 'capstone-project'
+    
+    # Get the index instance
     index = pc.Index(index_name)
 
+    # Specify the namespace
+    namespace = "your_namespace"
+
+    # Prepare data for upsert with metadata
     vectors_to_upsert = [
         (
-            f'row-{i}',  
-            final_embeddings[i],  
-            { 
-                'Difficulty': str(small_df.iloc[i]['Difficulty']),  
-                'Volatility': str(small_df.iloc[i].get('Volatility Level', '')), 
-                'Question': str(small_df.iloc[i]['Question']), 
-                'Answer': str(small_df.iloc[i]['Answer']),
-                'Context': str(small_df.iloc[i]['Context']),
-                'CombinedText': str(small_df.iloc[i]['combined'])
+            f'row-{i}',  # Unique ID
+            final_embeddings[i],  # The embedding
+            {  # Metadata for each vector, using fallback values if needed
+                'Difficulty': float(small_df.iloc[i]['Difficulty']),
+                'Volatility': float(small_df.iloc[i]['Volatility Level']),
+                'question': small_df.iloc[i]['Question'] or 'Unknown question',
+                'answer': small_df.iloc[i]['Answer'] or 'Unknown answer'
             }
         )
         for i in range(len(final_embeddings))
     ]
-    index.upsert(vectors=vectors_to_upsert)
-    print(f"Upserted {len(vectors_to_upsert)} vectors to the index '{index_name}'.")
 
-else:
-    raise Exception("No embeddings available to create or update the index.")
+    # Perform the upsert operation with a namespace
+    index.upsert(vectors=vectors_to_upsert, namespace=namespace)
 
-print("Script completed successfully.")
+    print(f"Upserted {len(vectors_to_upsert)} vectors to the index '{index_name}' in namespace '{namespace}'.")
